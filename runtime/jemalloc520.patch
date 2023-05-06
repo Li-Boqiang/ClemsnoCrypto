@@ -1,0 +1,63 @@
+diff --git a/src/jemalloc.c b/src/jemalloc.c
+index 3942c82b..c8afa9c4 100644
+--- a/src/jemalloc.c
++++ b/src/jemalloc.c
+@@ -215,8 +215,14 @@ malloc_init_a0(void) {
+ 	return false;
+ }
+ 
++#define _GNU_SOURCE
++#include <sys/mman.h>
++JEMALLOC_EXPORT int mpk_pkey = -1;
++
+ JEMALLOC_ALWAYS_INLINE bool
+ malloc_init(void) {
++	mpk_pkey = pkey_alloc(0, 0);
++	printf("pkey : %d\n", mpk_pkey);
+ 	if (unlikely(!malloc_initialized()) && malloc_init_hard()) {
+ 		return true;
+ 	}
+diff --git a/src/pages.c b/src/pages.c
+index bee99915..13de27a0 100644
+--- a/src/pages.c
++++ b/src/pages.c
+@@ -50,6 +50,10 @@ static void os_pages_unmap(void *addr, size_t size);
+ 
+ /******************************************************************************/
+ 
++#define _GNU_SOURCE
++#include <sys/mman.h>
++JEMALLOC_EXPORT int mpk_pkey;
++
+ static void *
+ os_pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
+ 	assert(ALIGNMENT_ADDR2BASE(addr, os_page) == addr);
+@@ -77,6 +81,9 @@ os_pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
+ 		int prot = *commit ? PAGES_PROT_COMMIT : PAGES_PROT_DECOMMIT;
+ 
+ 		ret = mmap(addr, size, prot, mmap_flags, -1, 0);
++		pkey_mprotect(ret, size, prot, mpk_pkey);
++		printf("os_pages_map %lx %lx\n", ret, size);
++
+ 	}
+ 	assert(ret != NULL);
+ 
+@@ -202,6 +209,7 @@ pages_map(void *addr, size_t size, size_t alignment, bool *commit) {
+ 		}
+ 
+ 		void *ret = mmap(addr, size, prot, flags, -1, 0);
++		printf("pages_map %lx\n", addr);
+ 		if (ret == MAP_FAILED) {
+ 			ret = NULL;
+ 		}
+@@ -260,8 +268,8 @@ pages_commit_impl(void *addr, size_t size, bool commit) {
+ #else
+ 	{
+ 		int prot = commit ? PAGES_PROT_COMMIT : PAGES_PROT_DECOMMIT;
+-		void *result = mmap(addr, size, prot, mmap_flags | MAP_FIXED,
+-		    -1, 0);
++		void *result = mmap(addr, size, prot, mmap_flags | MAP_FIXED, -1, 0);
++		printf("pages_commit_impl %lx\n", addr);
+ 		if (result == MAP_FAILED) {
+ 			return true;
+ 		}

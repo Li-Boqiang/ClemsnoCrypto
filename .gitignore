@@ -1,0 +1,8 @@
+build/*
+log.txt
+*.tar.gz
+cfg.*
+.tags
+peda*
+.gdb_history
+*.o
